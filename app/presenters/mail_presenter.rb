@@ -55,6 +55,15 @@ class MailPresenter < SimpleDelegator
     }
   end
 
+  MOBILE_BLOCKQUOTE_CSS = <<~CSS.freeze
+    <!-- chatwoot-bq-fix-v2 -->
+    <style>
+      blockquote { display: none !important; }
+      .gmail_quote, .gmail_attr, div[class*="gmail_quote"], div[class*="gmail_attr"] { display: none !important; }
+      div.OutlookMessageHeader, div[id*="reply_header"] { display: none !important; }
+    </style>
+  CSS
+
   def html_content
     encoded = mail_content(html_part) || ''
     @decoded_html_content = ::HtmlParser.parse_reply(encoded)
@@ -64,9 +73,9 @@ class MailPresenter < SimpleDelegator
     body = EmailReplyTrimmer.trim(@decoded_html_content)
 
     @html_content ||= {
-      full: mail_content(html_part),
-      reply: @decoded_html_content,
-      quoted: body
+      full: MOBILE_BLOCKQUOTE_CSS + (mail_content(html_part) || ''),
+      reply: MOBILE_BLOCKQUOTE_CSS + @decoded_html_content,
+      quoted: MOBILE_BLOCKQUOTE_CSS + body
     }
   end
 
