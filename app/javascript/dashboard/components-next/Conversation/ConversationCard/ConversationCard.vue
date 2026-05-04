@@ -57,6 +57,11 @@ const lastActivityAt = computed(() => {
   return timestamp ? shortTimestamp(dynamicTime(timestamp)) : '';
 });
 
+// True when the most recent inbound message has been replied to.
+// waiting_since is null (serialized as 0) when the team's last reply
+// is more recent than the latest customer message.
+const isReplied = computed(() => !props.conversation?.waiting_since);
+
 const showMessagePreviewWithoutMeta = computed(() => {
   const { labels = [] } = props.conversation;
   return (
@@ -104,6 +109,16 @@ const onCardClick = e => {
         </h4>
         <div class="flex items-center gap-2">
           <CardPriorityIcon :priority="conversation.priority || null" />
+          <div
+            v-if="isReplied"
+            v-tooltip.left="'Replied'"
+            class="flex items-center justify-center flex-shrink-0 rounded-full bg-n-teal-3 size-5"
+          >
+            <Icon
+              icon="i-lucide-check"
+              class="flex-shrink-0 text-n-teal-11 size-3"
+            />
+          </div>
           <div
             v-tooltip.left="inboxName"
             class="flex items-center justify-center flex-shrink-0 rounded-full bg-n-alpha-2 size-5"
