@@ -43,7 +43,10 @@ class EmailChannelFinder
 
   def channel_from_email(email)
     normalized_email = normalize_email_with_plus_addressing(email)
-    Channel::Email.find_by('lower(email) = ? OR lower(forward_to_email) = ?', normalized_email, normalized_email)
+    Channel::Email.find_by(
+      'lower(email) = :email OR lower(forward_to_email) = :email OR aliases @> ARRAY[:email]::varchar[]',
+      email: normalized_email
+    )
   end
 
   def bcc_processing_skipped_accounts

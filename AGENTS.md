@@ -3,6 +3,7 @@
 ## Build / Test / Lint
 
 - **Setup**: `bundle install && pnpm install`
+- **Fresh database setup**: Use `bundle exec rails db:schema:load`, NOT `db:migrate`. The full migration chain breaks on `db/migrate/20231211010807_add_cached_labels_list.rb`, which references `ActsAsTaggableOn::Taggable::Cache` — a constant that no longer exists in the current `acts-as-taggable-on` gem. The crash predates and is unrelated to current work; it only affects from-scratch DB creation. `db:schema:load` builds the database directly from `db/schema.rb` (the current snapshot) and skips the historical replay. Devs with an already-populated dev DB are unaffected and should keep using `db:migrate` for new migrations.
 - **Run Dev**: `pnpm dev` or `overmind start -f ./Procfile.dev`
 - **Seed Local Test Data**: `bundle exec rails db:seed` (quickly populates minimal data for standard feature verification)
 - **Seed Search Test Data**: `bundle exec rails search:setup_test_data` (bulk fixture generation for search/performance/manual load scenarios)
