@@ -2,11 +2,13 @@ class Mailbox::ConversationFinderStrategies::NewConversationStrategy < Mailbox::
   include MailboxHelper
   include IncomingEmailValidityHelper
 
-  attr_accessor :processed_mail, :account, :inbox, :contact, :contact_inbox, :conversation, :channel
+  attr_accessor :processed_mail, :account, :inbox, :contact, :contact_inbox, :conversation, :channel, :matched_address
 
   def initialize(mail)
     super(mail)
-    @channel = EmailChannelFinder.new(mail).perform
+    finder = EmailChannelFinder.new(mail)
+    @channel = finder.perform
+    @matched_address = finder.matched_address
     return unless @channel
 
     @account = @channel.account
@@ -64,6 +66,7 @@ class Mailbox::ConversationFinderStrategies::NewConversationStrategy < Mailbox::
         source: 'email',
         auto_reply: @processed_mail.auto_reply?,
         mail_subject: @processed_mail.subject,
+        inbound_recipient_email: @matched_address,
         initiated_at: {
           timestamp: Time.now.utc
         }

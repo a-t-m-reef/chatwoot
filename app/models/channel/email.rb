@@ -83,6 +83,16 @@ class Channel::Email < ApplicationRecord
     ([email] + aliases.to_a).compact_blank.uniq
   end
 
+  # Returns the address this channel should send from for replies on the given
+  # conversation. Prefers the address the inbound mail came in on (when it's a
+  # configured alias or the primary), falls back to the primary email.
+  def outbound_address_for(conversation)
+    inbound = conversation&.additional_attributes&.dig('inbound_recipient_email')
+    return inbound if inbound.present? && all_addresses.map(&:downcase).include?(inbound.downcase)
+
+    email
+  end
+
   private
 
   def ensure_forward_to_email
