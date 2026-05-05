@@ -122,6 +122,7 @@ export default {
       bccEmails: '',
       ccEmails: '',
       toEmails: '',
+      selectedFromEmail: '',
       doAutoSaveDraft: () => {},
       showWhatsAppTemplatesModal: false,
       showContentTemplatesModal: false,
@@ -193,6 +194,15 @@ export default {
     },
     inbox() {
       return this.$store.getters['inboxes/getInbox'](this.inboxId);
+    },
+    fromEmailOptions() {
+      if (!this.isAnEmailChannel) return [];
+      const primary = this.inbox?.email;
+      const aliases = this.inbox?.aliases || [];
+      return [primary, ...aliases].filter(Boolean);
+    },
+    inboundRecipientEmail() {
+      return this.currentChat?.additional_attributes?.inbound_recipient_email;
     },
     messagePlaceHolder() {
       if (this.isEditorDisabled) {
@@ -444,6 +454,7 @@ export default {
         // This prevents overwriting user input (e.g., CC/BCC fields) when performing actions
         // like self-assign or other updates that do not actually change the conversation context
         this.setCCAndToEmailsFromLastChat();
+        this.setDefaultFromEmail();
         // Reset Copilot editor state (includes cancelling ongoing generation)
         this.copilot.reset();
       }
@@ -496,6 +507,7 @@ export default {
     document.addEventListener('paste', this.onPaste);
     document.addEventListener('keydown', this.handleKeyEvents);
     this.setCCAndToEmailsFromLastChat();
+    this.setDefaultFromEmail();
     this.doAutoSaveDraft = debounce(
       () => {
         this.saveDraft(this.conversationIdByRoute, this.replyType);
@@ -1136,6 +1148,17 @@ export default {
       if (this.toEmails && !this.isOnPrivateNote) {
         messagePayload.toEmails = this.toEmails;
       }
+
+      if (
+        this.isAnEmailChannel &&
+        !this.isOnPrivateNote &&
+        this.selectedFromEmail
+      ) {
+        messagePayload.contentAttributes = {
+          ...(messagePayload.contentAttributes || {}),
+          from_email: this.selectedFromEmail,
+        };
+      }
       return messagePayload;
     },
     setCcEmails(value) {
@@ -1188,6 +1211,19 @@ export default {
       this.toEmails = to.join(', ');
       this.ccEmails = cc.join(', ');
       this.bccEmails = bcc.join(', ');
+    },
+    setDefaultFromEmail() {
+      const options = this.fromEmailOptions;
+      if (options.length === 0) {
+        this.selectedFromEmail = '';
+        return;
+      }
+      const inbound = this.inboundRecipientEmail;
+      if (inbound && options.includes(inbound)) {
+        this.selectedFromEmail = inbound;
+      } else {
+        this.selectedFromEmail = this.inbox?.email || options[0];
+      }
     },
     fetchAndSetReplyTo() {
       const replyStorageKey = LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
@@ -1308,6 +1344,8 @@ export default {
           v-model:cc-emails="ccEmails"
           v-model:bcc-emails="bccEmails"
           v-model:to-emails="toEmails"
+          v-model:from-email="selectedFromEmail"
+          :from-email-options="fromEmailOptions"
           @reply-all="applyReplyAll"
         />
         <AudioRecorder

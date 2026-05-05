@@ -218,6 +218,7 @@
       "COPILOT_THINKING": "Copilot is thinking",
       "EMAIL_HEAD": {
         "TO": "TO",
+        "FROM": "FROM",
         "ADD_BCC": "Add bcc",
         "CC": {
           "LABEL": "CC",

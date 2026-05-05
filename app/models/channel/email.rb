@@ -83,12 +83,20 @@ class Channel::Email < ApplicationRecord
     ([email] + aliases.to_a).compact_blank.uniq
   end
 
-  # Returns the address this channel should send from for replies on the given
-  # conversation. Prefers the address the inbound mail came in on (when it's a
-  # configured alias or the primary), falls back to the primary email.
-  def outbound_address_for(conversation)
+  # Returns the address this channel should send from for replies. Precedence:
+  # 1. Agent override on the outbound message (content_attributes['from_email'])
+  # 2. Address the inbound mail came in on
+  # 3. Primary email
+  # Any candidate that isn't in this channel's known addresses is silently
+  # rejected and falls through to the next branch.
+  def outbound_address_for(conversation, message: nil)
+    allowed = all_addresses.map(&:downcase)
+
+    override = message&.content_attributes&.dig('from_email')
+    return override if override.present? && allowed.include?(override.downcase)
+
     inbound = conversation&.additional_attributes&.dig('inbound_recipient_email')
-    return inbound if inbound.present? && all_addresses.map(&:downcase).include?(inbound.downcase)
+    return inbound if inbound.present? && allowed.include?(inbound.downcase)
 
     email
   end
