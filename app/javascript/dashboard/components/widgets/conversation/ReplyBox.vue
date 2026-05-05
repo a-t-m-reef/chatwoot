@@ -1165,6 +1165,37 @@ export default {
       this.bccEmails = value.bccEmails;
       this.ccEmails = value.ccEmails;
     },
+    applyReplyAll() {
+      const last = this.lastEmail;
+      const email = last?.content_attributes?.email;
+      if (!email) return;
+
+      const norm = e => (typeof e === 'string' ? e.toLowerCase().trim() : '');
+      const split = s => (s || '').split(',').map(norm).filter(Boolean);
+
+      const inboxAddr = norm(this.inbox?.email);
+      const forwardAddr = norm(this.inbox?.forward_to_email);
+      const fromList = (email.from || []).map(norm).filter(Boolean);
+      const original = [...(email.to || []), ...(email.cc || [])]
+        .map(norm)
+        .filter(Boolean);
+
+      const exclude = new Set(
+        [inboxAddr, forwardAddr, ...split(this.toEmails), ...fromList].filter(
+          Boolean
+        )
+      );
+      const existingCc = split(this.ccEmails);
+
+      const merged = [
+        ...new Set([
+          ...existingCc,
+          ...original.filter(addr => !exclude.has(addr)),
+        ]),
+      ];
+
+      this.ccEmails = merged.join(', ');
+    },
     setCCAndToEmailsFromLastChat() {
       const conversationContact = this.currentChat?.meta?.sender?.email || '';
       const { email: inboxEmail, forward_to_email: forwardToEmail } =
@@ -1315,6 +1346,7 @@ export default {
           v-model:to-emails="toEmails"
           v-model:from-email="selectedFromEmail"
           :from-email-options="fromEmailOptions"
+          @reply-all="applyReplyAll"
         />
         <AudioRecorder
           v-if="showAudioRecorderEditor"
