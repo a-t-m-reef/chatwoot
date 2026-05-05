@@ -21,7 +21,7 @@ export default {
       default: '',
     },
   },
-  emits: ['update:bccEmails', 'update:ccEmails', 'update:toEmails'],
+  emits: ['update:bccEmails', 'update:ccEmails', 'update:toEmails', 'replyAll'],
   setup() {
     return { v$: useVuelidate() };
   },
@@ -120,6 +120,13 @@ export default {
             @blur="onBlur"
           />
         </div>
+        <ButtonV4
+          label="Reply all"
+          ghost
+          xs
+          primary
+          @click="$emit('replyAll')"
+        />
         <ButtonV4
           v-if="!showBcc"
           :label="$t('CONVERSATION.REPLYBOX.EMAIL_HEAD.ADD_BCC')"
