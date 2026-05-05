@@ -9,6 +9,7 @@ import SmtpSettings from '../SmtpSettings.vue';
 import { useVuelidate } from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
 import TextArea from 'next/textarea/TextArea.vue';
 import WhatsappReauthorize from '../channels/whatsapp/Reauthorize.vue';
 import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
@@ -21,6 +22,7 @@ export default {
     ImapSettings,
     SmtpSettings,
     NextButton,
+    TagInput,
     TextArea,
     WhatsappReauthorize,
   },
@@ -44,6 +46,8 @@ export default {
       allowedDomains: '',
       isUpdatingAllowedDomains: false,
       isSettingDefaults: false,
+      emailAliases: [],
+      isUpdatingAliases: false,
     };
   },
   validations: {
@@ -83,9 +87,29 @@ export default {
         this.inbox.selected_feature_flags || []
       ).includes('allow_mobile_webview');
       this.allowedDomains = this.inbox.allowed_domains || '';
+      this.emailAliases = [...(this.inbox.aliases || [])];
       this.$nextTick(() => {
         this.isSettingDefaults = false;
       });
+    },
+    async updateEmailAliases() {
+      this.isUpdatingAliases = true;
+      try {
+        const payload = {
+          id: this.inbox.id,
+          formData: false,
+          channel: { aliases: this.emailAliases },
+        };
+        await this.$store.dispatch('inboxes/updateInbox', payload);
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+      } catch (error) {
+        useAlert(
+          error?.response?.data?.message ||
+            this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE')
+        );
+      } finally {
+        this.isUpdatingAliases = false;
+      }
     },
     handleHmacFlag() {
       this.updateInbox();
@@ -369,6 +393,31 @@ export default {
           <p class="text-body-para mb-0">
             {{ $t('INBOX_MGMT.SETTINGS_POPUP.FORWARD_EMAIL_NOT_CONFIGURED') }}
           </p>
+        </div>
+      </SettingsFieldSection>
+    </div>
+    <div>
+      <SettingsFieldSection
+        :label="$t('INBOX_MGMT.SETTINGS_POPUP.EMAIL_ALIASES_TITLE')"
+        :help-text="$t('INBOX_MGMT.SETTINGS_POPUP.EMAIL_ALIASES_SUB_TEXT')"
+      >
+        <div class="flex flex-col gap-3 items-start">
+          <TagInput
+            v-model="emailAliases"
+            type="email"
+            allow-create
+            :placeholder="
+              $t('INBOX_MGMT.SETTINGS_POPUP.EMAIL_ALIASES_PLACEHOLDER')
+            "
+            class="w-full"
+          />
+          <NextButton
+            :is-loading="isUpdatingAliases"
+            :disabled="isUpdatingAliases"
+            @click="updateEmailAliases"
+          >
+            {{ $t('INBOX_MGMT.SETTINGS_POPUP.EMAIL_ALIASES_SAVE') }}
+          </NextButton>
         </div>
       </SettingsFieldSection>
     </div>
