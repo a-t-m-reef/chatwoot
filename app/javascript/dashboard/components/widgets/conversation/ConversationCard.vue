@@ -11,6 +11,7 @@ import UnreadBadge from 'dashboard/components-next/Conversation/ConversationCard
 import SLACardLabel from './components/SLACardLabel.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
+import Icon from 'next/icon/Icon.vue';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -36,6 +37,7 @@ const hovered = ref(false);
 
 const unreadCount = computed(() => props.chat.unread_count);
 const hasUnread = computed(() => unreadCount.value > 0);
+const isReplied = computed(() => !props.chat?.waiting_since);
 const lastMessageInChat = computed(() => getLastMessage(props.chat));
 
 const voiceCallData = computed(() => ({
@@ -201,7 +203,15 @@ watch(
         class="absolute flex flex-col ltr:right-3 rtl:left-3"
         :class="showMetaSection ? 'top-8' : 'top-4'"
       >
-        <span class="ml-auto font-normal leading-4 text-xxs">
+        <span
+          class="ml-auto flex items-center gap-1 font-normal leading-4 text-xxs"
+        >
+          <Icon
+            v-if="isReplied"
+            v-tooltip="'Replied'"
+            icon="i-lucide-check"
+            class="text-n-teal-11 size-3"
+          />
           <TimeAgo
             :last-activity-timestamp="chat.timestamp"
             :created-at-timestamp="chat.created_at"

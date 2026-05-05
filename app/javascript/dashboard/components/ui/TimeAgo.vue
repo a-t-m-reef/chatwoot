@@ -43,6 +43,14 @@ export default {
     createdAtTime() {
       return shortTimestamp(this.createdAtTimeAgo);
     },
+    lastActivityDate() {
+      const ts = this.lastActivityTimestamp;
+      if (!ts) return '';
+      return new Date(Number(ts) * 1000).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      });
+    },
     createdAt() {
       const createdTimeDiff = Date.now() - this.createdAtTimestamp * 1000;
       const isBeforeAMonth = createdTimeDiff > DAY_IN_MILLI_SECONDS * 30;
@@ -127,6 +135,6 @@ export default {
     }"
     class="ml-auto leading-4 text-xxs text-n-slate-10 hover:text-n-slate-11"
   >
-    <span>{{ `${createdAtTime} • ${lastActivityTime}` }}</span>
+    <span>{{ `${lastActivityDate}, ${lastActivityTime}` }}</span>
   </div>
 </template>
