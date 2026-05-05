@@ -1,11 +1,15 @@
 class EmailChannelFinder
   include EmailHelper
 
+  attr_reader :matched_address
+
   def initialize(email_object)
     @email_object = email_object
+    @matched_address = nil
   end
 
   def perform
+    @matched_address = nil
     channel_from_primary_recipients || channel_from_bcc_recipients
   end
 
@@ -14,7 +18,10 @@ class EmailChannelFinder
   def channel_from_primary_recipients
     primary_recipient_emails.each do |email|
       channel = channel_from_email(email)
-      return channel if channel.present?
+      if channel.present?
+        @matched_address = normalize_email_with_plus_addressing(email)
+        return channel
+      end
     end
 
     nil
@@ -27,7 +34,10 @@ class EmailChannelFinder
       # Skip if BCC processing is disabled for this account
       next if channel && !allow_bcc_processing?(channel.account_id)
 
-      return channel if channel.present?
+      if channel.present?
+        @matched_address = normalize_email_with_plus_addressing(email)
+        return channel
+      end
     end
 
     nil
