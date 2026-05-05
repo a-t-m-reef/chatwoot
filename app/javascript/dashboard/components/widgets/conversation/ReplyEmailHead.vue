@@ -20,8 +20,21 @@ export default {
       type: String,
       default: '',
     },
+    fromEmail: {
+      type: String,
+      default: '',
+    },
+    fromEmailOptions: {
+      type: Array,
+      default: () => [],
+    },
   },
-  emits: ['update:bccEmails', 'update:ccEmails', 'update:toEmails'],
+  emits: [
+    'update:bccEmails',
+    'update:ccEmails',
+    'update:toEmails',
+    'update:fromEmail',
+  ],
   setup() {
     return { v$: useVuelidate() };
   },
@@ -32,6 +45,11 @@ export default {
       bccEmailsVal: '',
       toEmailsVal: '',
     };
+  },
+  computed: {
+    showFromPicker() {
+      return this.fromEmailOptions.length > 1;
+    },
   },
   watch: {
     bccEmails(newVal) {
@@ -82,12 +100,31 @@ export default {
       this.$emit('update:ccEmails', this.ccEmailsVal);
       this.$emit('update:toEmails', this.toEmailsVal);
     },
+    onFromChange(event) {
+      this.$emit('update:fromEmail', event.target.value);
+    },
   },
 };
 </script>
 
 <template>
   <div>
+    <div v-if="showFromPicker" class="input-group small">
+      <label class="input-group-label">
+        {{ $t('CONVERSATION.REPLYBOX.EMAIL_HEAD.FROM') }}
+      </label>
+      <div class="flex-1 min-w-0 m-0 rounded-none whitespace-nowrap">
+        <select
+          :value="fromEmail"
+          class="!mb-0 !bg-transparent !border-0 !outline-none h-8 text-sm w-full"
+          @change="onFromChange"
+        >
+          <option v-for="addr in fromEmailOptions" :key="addr" :value="addr">
+            {{ addr }}
+          </option>
+        </select>
+      </div>
+    </div>
     <div v-if="toEmails">
       <div class="input-group small" :class="{ error: v$.toEmailsVal.$error }">
         <label class="input-group-label">

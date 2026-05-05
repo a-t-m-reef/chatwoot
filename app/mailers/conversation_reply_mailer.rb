@@ -137,7 +137,7 @@ class ConversationReplyMailer < ApplicationMailer
   end
 
   def channel_email_with_name
-    sender_name(@channel.outbound_address_for(@conversation))
+    sender_name(@channel.outbound_address_for(@conversation, message: current_message))
   end
 
   def inbox_from_email_address
