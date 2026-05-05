@@ -54,7 +54,12 @@ const inboxIcon = computed(() => {
 
 const lastActivityAt = computed(() => {
   const timestamp = props.conversation?.timestamp;
-  return timestamp ? shortTimestamp(dynamicTime(timestamp)) : '';
+  if (!timestamp) return '';
+  const dateStr = new Date(timestamp * 1000).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+  return `${dateStr}, ${shortTimestamp(dynamicTime(timestamp))}`;
 });
 
 // True when the most recent inbound message has been replied to.
