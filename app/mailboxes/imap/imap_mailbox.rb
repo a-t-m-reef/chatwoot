@@ -101,12 +101,29 @@ class Imap::ImapMailbox
           in_reply_to: in_reply_to,
           auto_reply: @processed_mail.auto_reply?,
           mail_subject: @processed_mail.subject,
+          inbound_recipient_email: matched_inbound_recipient,
           initiated_at: {
             timestamp: Time.now.utc
           }
         }
       }
     )
+  end
+
+  # Returns the address from the mail's To/CC/X-Original-To headers that matches
+  # one of this channel's known addresses (primary, aliases, or forward_to_email).
+  # Used to remember which alias an inbound message arrived at, so replies can
+  # default the From header to the same address.
+  def matched_inbound_recipient
+    return nil unless @channel.respond_to?(:all_addresses)
+
+    allowed = (@channel.all_addresses + [@channel.forward_to_email]).compact_blank.map(&:downcase)
+    candidates = (@inbound_mail.to.to_a + @inbound_mail.cc.to_a + [@inbound_mail['X-Original-To'].try(:value)]).flatten.compact
+    candidates.each do |addr|
+      normalized = addr.to_s.downcase.strip
+      return normalized if allowed.include?(normalized)
+    end
+    nil
   end
 
   def find_or_create_contact
