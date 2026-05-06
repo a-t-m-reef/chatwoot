@@ -62,11 +62,13 @@ const store = useStore();
 const chatSortFilter = computed(() => store.getters.getChatSortFilter);
 
 const groupedList = computed(() => {
-  if (
-    chatSortFilter.value !== wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC
-  ) {
-    return props.conversationList;
-  }
+  // The store's default chatSortFilter is undefined, which sortComparator
+  // treats as last_activity_at_desc. Treat both as "default sort".
+  const sort = chatSortFilter.value;
+  const isDefaultSort =
+    !sort || sort === wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC;
+  if (!isDefaultSort) return props.conversationList;
+
   let prev = null;
   return props.conversationList.flatMap(chat => {
     const bucket = bucketForChat(chat);
