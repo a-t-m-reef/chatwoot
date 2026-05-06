@@ -52,28 +52,36 @@ const bucketForTimestamp = ts => {
   return 'Older';
 };
 
-// Map active sort key -> the conversation field to read for bucketing. Headers
-// only make sense for chronological-DESC sorts (newest at top); for any other
-// sort the list isn't monotonic in time, so we hide the headers and render the
-// plain list. The store's initial state is undefined; sortComparator falls back
-// to last_activity_at_desc, so we treat undefined the same way.
-const SORT_FIELDS_FOR_HEADERS = {
-  [wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC]: 'last_activity_at',
-  [wootConstants.SORT_BY_TYPE.CREATED_AT_DESC]: 'created_at',
-};
+// Sorts where the bucket headers make sense (newest at top, monotonic in time).
+// We re-sort the displayed list by last_activity_at DESC ourselves so the bucket
+// label always agrees with the date shown on each card (TimeAgo reads
+// last_activity_at). This avoids the "header says This Month, card says May 5,
+// 1d" perceptual bug where bucket source and display source disagreed.
+// For any other sort (waiting_since, priority, asc), the list isn't monotonic
+// in time so we hide headers and pass the upstream list through unchanged.
+const HEADER_FRIENDLY_SORTS = new Set([
+  undefined,
+  wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC,
+  wootConstants.SORT_BY_TYPE.CREATED_AT_DESC,
+]);
 
 const store = useStore();
 const chatSortFilter = computed(() => store.getters.getChatSortFilter);
 
+const lastActivityTs = chat => chat?.last_activity_at || chat?.created_at || 0;
+
 const groupedList = computed(() => {
-  const sort = chatSortFilter.value;
-  const sortField = sort ? SORT_FIELDS_FOR_HEADERS[sort] : 'last_activity_at';
-  if (!sortField) return props.conversationList;
+  if (!HEADER_FRIENDLY_SORTS.has(chatSortFilter.value)) {
+    return props.conversationList;
+  }
+
+  const sorted = [...props.conversationList].sort(
+    (a, b) => lastActivityTs(b) - lastActivityTs(a)
+  );
 
   let prev = null;
-  return props.conversationList.flatMap(chat => {
-    const ts = chat?.[sortField] || chat?.created_at;
-    const bucket = bucketForTimestamp(ts);
+  return sorted.flatMap(chat => {
+    const bucket = bucketForTimestamp(lastActivityTs(chat));
     if (!bucket || bucket === prev) return [chat];
     prev = bucket;
     return [{ __header: true, label: bucket, key: `__h_${bucket}` }, chat];
