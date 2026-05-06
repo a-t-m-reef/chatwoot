@@ -110,22 +110,24 @@ defineExpose({ conversationListRef });
       :data="groupedList"
       class="[&>div:has(+_div_.active)>*]:!border-n-surface-1 [&>div:has(+_div_.selected)>*]:!border-n-surface-1"
     >
-      <div
-        v-if="item.__header"
-        class="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-n-slate-11 bg-n-slate-2 border-b border-n-slate-3"
-      >
-        {{ item.label }}
+      <div>
+        <div
+          v-if="item.__header"
+          class="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-n-slate-11 bg-n-slate-2 border-b border-n-slate-3"
+        >
+          {{ item.label }}
+        </div>
+        <ConversationItem
+          v-else
+          :source="item"
+          :label="label"
+          :team-id="teamId"
+          :folders-id="foldersId"
+          :conversation-type="conversationType"
+          :show-assignee="showAssignee"
+          :show-expanded="showExpandedCards"
+        />
       </div>
-      <ConversationItem
-        v-else
-        :source="item"
-        :label="label"
-        :team-id="teamId"
-        :folders-id="foldersId"
-        :conversation-type="conversationType"
-        :show-assignee="showAssignee"
-        :show-expanded="showExpandedCards"
-      />
     </Virtualizer>
     <div v-if="isLoading" class="flex justify-center my-4">
       <Spinner class="text-n-brand" />
