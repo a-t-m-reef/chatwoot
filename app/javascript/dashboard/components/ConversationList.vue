@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, provide } from 'vue';
+import { useStore } from 'vuex';
+import { fromUnixTime, differenceInDays, isToday, isYesterday } from 'date-fns';
 import { Virtualizer } from 'virtua/vue';
 import { useBreakpoints } from '@vueuse/core';
 import { useChatListKeyboardEvents } from 'dashboard/composables/chatlist/useChatListKeyboardEvents';
@@ -37,43 +39,41 @@ const showExpandedCards = computed(
   () => props.isOnExpandedLayout && isLgScreen.value
 );
 
-// Time-bucket label for a conversation timestamp (unix seconds).
-const ONE_DAY_S = 86400;
-const bucketFor = ts => {
-  if (!ts) return 'No date';
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  if (ts >= startOfToday.getTime() / 1000) return 'Today';
-  const diffDays = (Date.now() / 1000 - ts) / ONE_DAY_S;
-  if (diffDays < 8) return 'This Week';
-  if (diffDays < 15) return '1-2 Weeks';
-  if (diffDays < 31) return '2-4 Weeks';
-  return 'Over a Month';
+// Time-bucket label for a conversation, based on its actual sort key
+// (last_activity_at). Uses date-fns helpers so today/yesterday respect
+// local timezone and DST without manual epoch arithmetic.
+const bucketForChat = chat => {
+  const ts = chat?.last_activity_at || chat?.created_at;
+  if (!ts) return null;
+  const date = fromUnixTime(ts);
+  if (isToday(date)) return 'Today';
+  if (isYesterday(date)) return 'Yesterday';
+  const days = differenceInDays(new Date(), date);
+  if (days < 7) return 'This Week';
+  if (days < 30) return 'This Month';
+  return 'Older';
 };
 
-const BUCKET_ORDER = [
-  'Today',
-  'This Week',
-  '1-2 Weeks',
-  '2-4 Weeks',
-  'Over a Month',
-  'No date',
-];
+// Headers only make sense in the default last-activity-DESC sort. With a
+// different sort selected by the user (waiting_since, priority, etc.) the
+// list is no longer monotonic in time, so showing headers would produce
+// nonsense. Hide them in that case and just render the plain list.
+const store = useStore();
+const chatSortFilter = computed(() => store.getters.getChatSortFilter);
 
-// Group conversations by time bucket, then render the buckets in fixed order
-// with one header each. Conversations within a bucket keep their original
-// relative order (so Chatwoot's chosen sort still applies inside each group).
 const groupedList = computed(() => {
-  const groups = Object.fromEntries(BUCKET_ORDER.map(k => [k, []]));
-  props.conversationList.forEach(chat => {
-    const b = bucketFor(chat?.timestamp);
-    if (groups[b]) groups[b].push(chat);
+  if (
+    chatSortFilter.value !== wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC
+  ) {
+    return props.conversationList;
+  }
+  let prev = null;
+  return props.conversationList.flatMap(chat => {
+    const bucket = bucketForChat(chat);
+    if (!bucket || bucket === prev) return [chat];
+    prev = bucket;
+    return [{ __header: true, label: bucket, key: `__h_${bucket}` }, chat];
   });
-  return BUCKET_ORDER.flatMap(label =>
-    groups[label].length
-      ? [{ __header: true, label, key: `__h_${label}` }, ...groups[label]]
-      : []
-  );
 });
 
 useChatListKeyboardEvents(conversationListRef);
@@ -110,7 +110,7 @@ defineExpose({ conversationListRef });
     >
       <div
         v-if="item.__header"
-        class="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-n-slate-11 bg-n-slate-2 border-b border-n-slate-3 sticky top-0 z-10"
+        class="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-n-slate-11 bg-n-slate-2 border-b border-n-slate-3"
       >
         {{ item.label }}
       </div>
