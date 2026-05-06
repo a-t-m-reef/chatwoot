@@ -45,25 +45,35 @@ const bucketFor = ts => {
   startOfToday.setHours(0, 0, 0, 0);
   if (ts >= startOfToday.getTime() / 1000) return 'Today';
   const diffDays = (Date.now() / 1000 - ts) / ONE_DAY_S;
-  if (diffDays < 7) return 'This Week';
-  if (diffDays < 14) return '1-2 Weeks';
-  if (diffDays < 30) return '2-4 Weeks';
+  if (diffDays < 8) return 'This Week';
+  if (diffDays < 15) return '1-2 Weeks';
+  if (diffDays < 31) return '2-4 Weeks';
   return 'Over a Month';
 };
 
-// Interleave time-bucket header items between conversations whenever the bucket changes.
-// Each item is either { __header: true, label: 'Today' } or a regular conversation chat object.
+const BUCKET_ORDER = [
+  'Today',
+  'This Week',
+  '1-2 Weeks',
+  '2-4 Weeks',
+  'Over a Month',
+  'No date',
+];
+
+// Group conversations by time bucket, then render the buckets in fixed order
+// with one header each. Conversations within a bucket keep their original
+// relative order (so Chatwoot's chosen sort still applies inside each group).
 const groupedList = computed(() => {
-  let prevBucket = null;
-  return props.conversationList.flatMap(chat => {
-    const bucket = bucketFor(chat?.timestamp);
-    const items =
-      bucket !== prevBucket
-        ? [{ __header: true, label: bucket, key: `__h_${bucket}` }, chat]
-        : [chat];
-    prevBucket = bucket;
-    return items;
+  const groups = Object.fromEntries(BUCKET_ORDER.map(k => [k, []]));
+  props.conversationList.forEach(chat => {
+    const b = bucketFor(chat?.timestamp);
+    if (groups[b]) groups[b].push(chat);
   });
+  return BUCKET_ORDER.flatMap(label =>
+    groups[label].length
+      ? [{ __header: true, label, key: `__h_${label}` }, ...groups[label]]
+      : []
+  );
 });
 
 useChatListKeyboardEvents(conversationListRef);
