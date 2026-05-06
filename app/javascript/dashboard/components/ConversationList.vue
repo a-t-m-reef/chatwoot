@@ -39,11 +39,9 @@ const showExpandedCards = computed(
   () => props.isOnExpandedLayout && isLgScreen.value
 );
 
-// Time-bucket label for a conversation, based on its actual sort key
-// (last_activity_at). Uses date-fns helpers so today/yesterday respect
-// local timezone and DST without manual epoch arithmetic.
-const bucketForChat = chat => {
-  const ts = chat?.last_activity_at || chat?.created_at;
+// Time-bucket label for a unix-seconds timestamp. Uses date-fns helpers so
+// today / yesterday respect local timezone and DST.
+const bucketForTimestamp = ts => {
   if (!ts) return null;
   const date = fromUnixTime(ts);
   if (isToday(date)) return 'Today';
@@ -54,24 +52,28 @@ const bucketForChat = chat => {
   return 'Older';
 };
 
-// Headers only make sense in the default last-activity-DESC sort. With a
-// different sort selected by the user (waiting_since, priority, etc.) the
-// list is no longer monotonic in time, so showing headers would produce
-// nonsense. Hide them in that case and just render the plain list.
+// Map active sort key -> the conversation field to read for bucketing. Headers
+// only make sense for chronological-DESC sorts (newest at top); for any other
+// sort the list isn't monotonic in time, so we hide the headers and render the
+// plain list. The store's initial state is undefined; sortComparator falls back
+// to last_activity_at_desc, so we treat undefined the same way.
+const SORT_FIELDS_FOR_HEADERS = {
+  [wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC]: 'last_activity_at',
+  [wootConstants.SORT_BY_TYPE.CREATED_AT_DESC]: 'created_at',
+};
+
 const store = useStore();
 const chatSortFilter = computed(() => store.getters.getChatSortFilter);
 
 const groupedList = computed(() => {
-  // The store's default chatSortFilter is undefined, which sortComparator
-  // treats as last_activity_at_desc. Treat both as "default sort".
   const sort = chatSortFilter.value;
-  const isDefaultSort =
-    !sort || sort === wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC;
-  if (!isDefaultSort) return props.conversationList;
+  const sortField = sort ? SORT_FIELDS_FOR_HEADERS[sort] : 'last_activity_at';
+  if (!sortField) return props.conversationList;
 
   let prev = null;
   return props.conversationList.flatMap(chat => {
-    const bucket = bucketForChat(chat);
+    const ts = chat?.[sortField] || chat?.created_at;
+    const bucket = bucketForTimestamp(ts);
     if (!bucket || bucket === prev) return [chat];
     prev = bucket;
     return [{ __header: true, label: bucket, key: `__h_${bucket}` }, chat];
