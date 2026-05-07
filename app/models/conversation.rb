@@ -146,6 +146,13 @@ class Conversation < ApplicationRecord
     messages.where(account_id: account_id)&.incoming&.last
   end
 
+  # Timestamp of the most recent inbound message, or created_at when no inbound exists.
+  # Used by the dashboard conversation list for sort/display so that an agent's own
+  # outgoing reply doesn't bump the conversation back to the top.
+  def last_inbound_at
+    messages.incoming.maximum(:created_at) || created_at
+  end
+
   def toggle_status
     # FIXME: implement state machine with aasm
     self.status = open? ? :resolved : :open

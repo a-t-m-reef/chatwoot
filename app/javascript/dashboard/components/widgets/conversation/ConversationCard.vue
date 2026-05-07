@@ -213,7 +213,7 @@ watch(
             class="text-n-teal-11 size-3"
           />
           <TimeAgo
-            :last-activity-timestamp="chat.timestamp"
+            :last-activity-timestamp="chat.last_inbound_at || chat.timestamp"
             :created-at-timestamp="chat.created_at"
             :conversation-id="chat.id"
           />

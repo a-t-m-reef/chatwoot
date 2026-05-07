@@ -68,7 +68,10 @@ const HEADER_FRIENDLY_SORTS = new Set([
 const store = useStore();
 const chatSortFilter = computed(() => store.getters.getChatSortFilter);
 
-const lastActivityTs = chat => chat?.last_activity_at || chat?.created_at || 0;
+// Use last_inbound_at (most recent customer message) so an outgoing reply
+// from us doesn't bump the conversation. Falls back to created_at when no
+// inbound exists (e.g. agent-initiated threads, system notifications).
+const lastActivityTs = chat => chat?.last_inbound_at || chat?.created_at || 0;
 
 const groupedList = computed(() => {
   if (!HEADER_FRIENDLY_SORTS.has(chatSortFilter.value)) {
