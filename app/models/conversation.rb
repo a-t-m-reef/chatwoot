@@ -79,6 +79,9 @@ class Conversation < ApplicationRecord
   scope :assigned, -> { where.not(assignee_id: nil) }
   scope :assigned_to, ->(agent) { where(assignee_id: agent.id) }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
+  scope :with_outgoing_email, -> { joins(:messages).where(messages: { message_type: :outgoing, private: false }).distinct }
+  scope :in_mail_folder, ->(folder) { where("conversations.additional_attributes->>'mail_folder' = ?", folder) }
+  scope :not_spam_or_trash, -> { where("COALESCE(conversations.additional_attributes->>'mail_folder', '') NOT IN ('spam', 'trash')") }
   scope :resolvable_not_waiting, lambda { |auto_resolve_after|
     return none if auto_resolve_after.to_i.zero?
 
@@ -163,6 +166,13 @@ class Conversation < ApplicationRecord
   def toggle_priority(priority = nil)
     self.priority = priority.presence
     save
+  end
+
+  # Sets the email-style folder bucket (spam/trash). Passing nil restores the
+  # conversation to the inbox by clearing the flag.
+  def update_mail_folder!(folder)
+    new_attributes = folder ? additional_attributes.merge('mail_folder' => folder) : additional_attributes.except('mail_folder')
+    update!(additional_attributes: new_attributes)
   end
 
   def bot_handoff!

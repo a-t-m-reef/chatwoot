@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch, inject } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper';
 import ConversationCard from './widgets/conversation/ConversationCard.vue';
@@ -19,7 +19,10 @@ const props = defineProps({
 });
 
 const router = useRouter();
+const route = useRoute();
 const store = useStore();
+
+const currentMailFolder = computed(() => route.params.folder || '');
 
 const selectConversation = inject('selectConversation');
 const deSelectConversation = inject('deSelectConversation');
@@ -34,6 +37,8 @@ const markAsRead = inject('markAsRead');
 const assignPriority = inject('assignPriority');
 const isConversationSelected = inject('isConversationSelected');
 const deleteConversation = inject('deleteConversation');
+const moveConversationToFolder = inject('moveConversationToFolder');
+const restoreConversation = inject('restoreConversation');
 
 // --- Context menu state (shared by both layouts) ---
 const showContextMenu = ref(false);
@@ -176,6 +181,16 @@ const onDeleteConversation = () => {
   deleteConversation(props.source.id);
   closeContextMenu();
 };
+
+const onMoveToFolder = folder => {
+  moveConversationToFolder(props.source.id, folder);
+  closeContextMenu();
+};
+
+const onRestoreConversation = () => {
+  restoreConversation(props.source.id);
+  closeContextMenu();
+};
 </script>
 
 <template>
@@ -229,6 +244,7 @@ const onDeleteConversation = () => {
       :has-unread-messages="source.unread_count > 0"
       :conversation-labels="source.labels"
       :conversation-url="conversationPath"
+      :current-mail-folder="currentMailFolder"
       @update-conversation="onUpdateConversation"
       @assign-agent="onAssignAgent"
       @assign-label="onAssignLabel"
@@ -238,6 +254,8 @@ const onDeleteConversation = () => {
       @mark-as-read="onMarkAsRead"
       @assign-priority="onAssignPriority"
       @delete-conversation="onDeleteConversation"
+      @move-to-folder="onMoveToFolder"
+      @restore-conversation="onRestoreConversation"
       @close="closeContextMenu"
     />
   </ContextMenu>

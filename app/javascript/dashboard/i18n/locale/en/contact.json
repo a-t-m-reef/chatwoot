@@ -620,7 +620,8 @@
       },
       "INBOX_SELECTOR": {
         "LABEL": "Via:",
-        "BUTTON": "Show inboxes"
+        "BUTTON": "Show inboxes",
+        "SELECT_CONTACT_FIRST": "Select a contact first to choose an inbox"
       },
       "EMAIL_OPTIONS": {
         "SUBJECT_LABEL": "Subject :",

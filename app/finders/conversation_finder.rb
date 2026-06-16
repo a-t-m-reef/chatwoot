@@ -81,6 +81,7 @@ class ConversationFinder
 
     find_all_conversations
     filter_by_status unless params[:q]
+    filter_by_folder
     filter_by_team
     filter_by_labels
     filter_by_query
@@ -162,6 +163,19 @@ class ConversationFinder
     return if params[:status] == 'all'
 
     @conversations = @conversations.where(status: params[:status] || DEFAULT_STATUS)
+  end
+
+  # Maps email-style folders onto the conversation model. Spam/trash are mutually
+  # exclusive states stored in additional_attributes; sent/drafts are filter views.
+  # The default (no folder, or inbox) hides spam/trash from the regular list.
+  def filter_by_folder
+    @conversations = case params[:folder]
+                     when 'sent'   then @conversations.with_outgoing_email.not_spam_or_trash
+                     when 'spam'   then @conversations.in_mail_folder('spam')
+                     when 'trash'  then @conversations.in_mail_folder('trash')
+                     when 'drafts' then @conversations.none # TODO(phase-3): replace with .with_drafts once the Draft model exists
+                     else @conversations.not_spam_or_trash
+                     end
   end
 
   def filter_by_team

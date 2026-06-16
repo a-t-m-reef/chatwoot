@@ -59,6 +59,7 @@ const props = defineProps({
   label: { type: String, default: '' },
   conversationType: { type: String, default: '' },
   foldersId: { type: [String, Number], default: 0 },
+  mailFolder: { type: String, default: '' },
   showConversationList: { default: true, type: Boolean },
   isOnExpandedLayout: { default: false, type: Boolean },
 });
@@ -245,16 +246,47 @@ const conversationListPagination = computed(() => {
   return currentPage.value + 1;
 });
 
+// Sent/Drafts/Spam/Trash are not scoped to a single status the way the Inbox is,
+// so we show all statuses for those folders. The Inbox folder keeps the status tabs.
+const isMailFolderView = computed(() => Boolean(props.mailFolder));
+const showAllStatusesForFolder = computed(
+  () => isMailFolderView.value && props.mailFolder !== 'inbox'
+);
+
+// Email-style folder switcher, shown only when viewing a single email inbox.
+const MAIL_FOLDERS = ['inbox', 'sent', 'drafts', 'spam', 'trash'];
+const showMailFolders = computed(
+  () =>
+    Boolean(props.conversationInbox) &&
+    inbox.value?.channel_type === 'Channel::Email'
+);
+const activeMailFolder = computed(() => props.mailFolder || 'inbox');
+function mailFolderRoute(folder) {
+  if (folder === 'inbox') {
+    return {
+      name: 'inbox_dashboard',
+      params: { inbox_id: props.conversationInbox },
+    };
+  }
+  return {
+    name: 'inbox_mail_folder',
+    params: { inbox_id: props.conversationInbox, folder },
+  };
+}
+
 const conversationFilters = computed(() => {
   return {
     inboxId: props.conversationInbox ? props.conversationInbox : undefined,
     assigneeType: activeAssigneeTab.value,
-    status: activeStatus.value,
+    status: showAllStatusesForFolder.value
+      ? wootConstants.STATUS_TYPE.ALL
+      : activeStatus.value,
     sortBy: activeSortBy.value,
     page: conversationListPagination.value,
     labels: props.label ? [props.label] : undefined,
     teamId: props.teamId || undefined,
     conversationType: props.conversationType || undefined,
+    folder: props.mailFolder || undefined,
   };
 });
 
@@ -818,6 +850,34 @@ const handleDelete = conversationId => {
   deleteConversationDialogRef.value.open();
 };
 
+async function moveConversationToFolder(conversationId, folder) {
+  try {
+    await store.dispatch('setConversationMailFolder', {
+      conversationId,
+      folder,
+    });
+    useAlert(
+      t(
+        `CONVERSATION.CARD_CONTEXT_MENU.MAIL_FOLDER.MOVED_TO_${folder.toUpperCase()}`
+      )
+    );
+  } catch (error) {
+    useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.MAIL_FOLDER.MOVE_FAILED'));
+  }
+}
+
+async function restoreConversation(conversationId) {
+  try {
+    await store.dispatch('setConversationMailFolder', {
+      conversationId,
+      folder: null,
+    });
+    useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.MAIL_FOLDER.RESTORED'));
+  } catch (error) {
+    useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.MAIL_FOLDER.MOVE_FAILED'));
+  }
+}
+
 provide('selectConversation', selectConversation);
 provide('deSelectConversation', deSelectConversation);
 provide('assignAgent', onAssignAgent);
@@ -830,6 +890,8 @@ provide('markAsRead', markAsRead);
 provide('assignPriority', assignPriority);
 provide('isConversationSelected', isConversationSelected);
 provide('deleteConversation', handleDelete);
+provide('moveConversationToFolder', moveConversationToFolder);
+provide('restoreConversation', restoreConversation);
 
 watch(activeTeam, () => resetAndFetchData());
 
@@ -843,6 +905,10 @@ watch(
 );
 watch(
   computed(() => props.conversationType),
+  () => resetAndFetchData()
+);
+watch(
+  computed(() => props.mailFolder),
   () => resetAndFetchData()
 );
 
@@ -909,6 +975,24 @@ watch(conversationFilters, (newVal, oldVal) => {
       @close="onCloseDeleteFoldersModal"
     />
 
+    <div
+      v-if="showMailFolders"
+      class="flex items-center gap-1 px-3 py-2 overflow-x-auto border-b border-n-weak no-scrollbar"
+    >
+      <router-link
+        v-for="folder in MAIL_FOLDERS"
+        :key="folder"
+        :to="mailFolderRoute(folder)"
+        class="px-2 py-1 text-xs font-medium rounded-md whitespace-nowrap"
+        :class="
+          activeMailFolder === folder
+            ? 'text-n-slate-12 bg-n-alpha-2'
+            : 'text-n-slate-11 hover:bg-n-alpha-1'
+        "
+      >
+        {{ $t(`CHAT_LIST.MAIL_FOLDERS.${folder.toUpperCase()}`) }}
+      </router-link>
+    </div>
     <ChatTypeTabs
       v-if="!hasAppliedFiltersOrActiveFolders"
       :items="assigneeTabItems"

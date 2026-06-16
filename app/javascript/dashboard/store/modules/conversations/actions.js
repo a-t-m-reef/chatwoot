@@ -359,6 +359,16 @@ const actions = {
     }
   },
 
+  setConversationMailFolder: async (
+    { commit, dispatch },
+    { conversationId, folder }
+  ) => {
+    await ConversationApi.setMailFolder({ conversationId, folder });
+    // Remove from the current list; spam/trash leave the inbox, restore leaves spam/trash.
+    commit(types.DELETE_CONVERSATION, conversationId);
+    dispatch('conversationStats/get', {}, { root: true });
+  },
+
   addConversation({ commit, state, dispatch, rootState }, conversation) {
     const { currentInbox, appliedFilters } = state;
     const {

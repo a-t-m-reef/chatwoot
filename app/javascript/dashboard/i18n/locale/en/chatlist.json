@@ -14,6 +14,13 @@
       "INPUT": "Search for People, Chats, Saved Replies .."
     },
     "FILTER_ALL": "All",
+    "MAIL_FOLDERS": {
+      "INBOX": "Inbox",
+      "SENT": "Sent",
+      "DRAFTS": "Drafts",
+      "SPAM": "Spam",
+      "TRASH": "Trash"
+    },
     "ASSIGNEE_TYPE_TABS": {
       "me": "Mine",
       "unassigned": "Unassigned",

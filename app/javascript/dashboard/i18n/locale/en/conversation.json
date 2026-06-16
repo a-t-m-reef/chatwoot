@@ -166,6 +166,15 @@
       "OPEN_IN_NEW_TAB": "Open in new tab",
       "COPY_LINK": "Copy conversation link",
       "COPY_LINK_SUCCESS": "Conversation link copied to clipboard",
+      "MAIL_FOLDER": {
+        "MOVE_TO_SPAM": "Move to spam",
+        "MOVE_TO_TRASH": "Move to trash",
+        "RESTORE": "Restore to inbox",
+        "MOVED_TO_SPAM": "Conversation moved to spam",
+        "MOVED_TO_TRASH": "Conversation moved to trash",
+        "RESTORED": "Conversation restored to inbox",
+        "MOVE_FAILED": "Couldn't move the conversation. Please try again."
+      },
       "API": {
         "AGENT_ASSIGNMENT": {
           "SUCCESFUL": "Conversation id {conversationId} assigned to \"{agentName}\"",

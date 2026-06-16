@@ -74,6 +74,13 @@ const targetInboxLabel = computed(() => {
     <div
       v-else
       v-on-click-outside="() => emit('toggleDropdown', false)"
+      v-tooltip.top="
+        !selectedContact
+          ? t(
+              'COMPOSE_NEW_CONVERSATION.FORM.INBOX_SELECTOR.SELECT_CONTACT_FIRST'
+            )
+          : null
+      "
       class="relative flex items-center h-7"
     >
       <Spinner v-if="isFetchingInboxes" :size="16" />

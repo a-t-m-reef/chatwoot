@@ -62,6 +62,33 @@ export default {
       },
     },
     {
+      path: frontendURL('accounts/:accountId/inbox/:inbox_id/mail/:folder'),
+      name: 'inbox_mail_folder',
+      meta: {
+        permissions: CONVERSATION_PERMISSIONS,
+      },
+      component: ConversationView,
+      props: route => ({
+        inboxId: route.params.inbox_id,
+        mailFolder: route.params.folder,
+      }),
+    },
+    {
+      path: frontendURL(
+        'accounts/:accountId/inbox/:inbox_id/mail/:folder/conversations/:conversation_id'
+      ),
+      name: 'conversation_through_mail_folder',
+      meta: {
+        permissions: CONVERSATION_PERMISSIONS,
+      },
+      component: ConversationView,
+      props: route => ({
+        conversationId: route.params.conversation_id,
+        inboxId: route.params.inbox_id,
+        mailFolder: route.params.folder,
+      }),
+    },
+    {
       path: frontendURL('accounts/:accountId/label/:label'),
       name: 'label_conversations',
       meta: {

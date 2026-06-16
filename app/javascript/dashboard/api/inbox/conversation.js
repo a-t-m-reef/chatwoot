@@ -14,6 +14,7 @@ class ConversationApi extends ApiClient {
     labels,
     teamId,
     conversationType,
+    folder,
     sortBy,
     updatedWithin,
   }) {
@@ -26,6 +27,7 @@ class ConversationApi extends ApiClient {
         page,
         labels,
         conversation_type: conversationType,
+        folder,
         sort_by: sortBy,
         updated_within: updatedWithin,
       },
@@ -46,6 +48,12 @@ class ConversationApi extends ApiClient {
         q,
         page: 1,
       },
+    });
+  }
+
+  setMailFolder({ conversationId, folder }) {
+    return axios.post(`${this.url}/${conversationId}/mail_folder`, {
+      folder,
     });
   }
 

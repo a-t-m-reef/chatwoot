@@ -24,6 +24,9 @@ const MENU = {
   DELETE: 'delete',
   OPEN_NEW_TAB: 'open-new-tab',
   COPY_LINK: 'copy-link',
+  MOVE_TO_SPAM: 'move-to-spam',
+  MOVE_TO_TRASH: 'move-to-trash',
+  RESTORE: 'restore',
 };
 
 export default {
@@ -65,6 +68,10 @@ export default {
       type: Array,
       default: () => [],
     },
+    currentMailFolder: {
+      type: String,
+      default: '',
+    },
   },
   emits: [
     'updateConversation',
@@ -76,6 +83,8 @@ export default {
     'assignLabel',
     'removeLabel',
     'deleteConversation',
+    'moveToFolder',
+    'restoreConversation',
     'close',
   ],
   setup() {
@@ -175,6 +184,25 @@ export default {
         icon: 'copy',
         label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.COPY_LINK'),
       },
+      moveToSpamOption: {
+        key: MENU.MOVE_TO_SPAM,
+        icon: 'warning',
+        label: this.$t(
+          'CONVERSATION.CARD_CONTEXT_MENU.MAIL_FOLDER.MOVE_TO_SPAM'
+        ),
+      },
+      moveToTrashOption: {
+        key: MENU.MOVE_TO_TRASH,
+        icon: 'delete',
+        label: this.$t(
+          'CONVERSATION.CARD_CONTEXT_MENU.MAIL_FOLDER.MOVE_TO_TRASH'
+        ),
+      },
+      restoreOption: {
+        key: MENU.RESTORE,
+        icon: 'arrow-redo',
+        label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.MAIL_FOLDER.RESTORE'),
+      },
     };
   },
   computed: {
@@ -215,6 +243,15 @@ export default {
     showSnooze() {
       // Don't show snooze if the conversation is already snoozed/resolved/pending
       return this.status === wootConstants.STATUS_TYPE.OPEN;
+    },
+    showRestore() {
+      return ['spam', 'trash'].includes(this.currentMailFolder);
+    },
+    showMoveToSpam() {
+      return this.currentMailFolder !== 'spam';
+    },
+    showMoveToTrash() {
+      return this.currentMailFolder !== 'trash';
     },
   },
   mounted() {
@@ -393,6 +430,27 @@ export default {
         :option="copyLinkOption"
         variant="icon"
         @click.stop="copyConversationLink"
+      />
+    </template>
+    <template v-if="showMoveToSpam || showMoveToTrash || showRestore">
+      <hr class="m-1 rounded border-b border-n-weak dark:border-n-weak" />
+      <MenuItem
+        v-if="showRestore"
+        :option="restoreOption"
+        variant="icon"
+        @click.stop="$emit('restoreConversation')"
+      />
+      <MenuItem
+        v-if="showMoveToSpam"
+        :option="moveToSpamOption"
+        variant="icon"
+        @click.stop="$emit('moveToFolder', 'spam')"
+      />
+      <MenuItem
+        v-if="showMoveToTrash"
+        :option="moveToTrashOption"
+        variant="icon"
+        @click.stop="$emit('moveToFolder', 'trash')"
       />
     </template>
     <template v-if="isAdmin && isAllowed([MENU.DELETE])">
