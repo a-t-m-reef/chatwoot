@@ -36,16 +36,30 @@ class Inboxes::FetchImapEmailsJob < MutexApplicationJob
                      else
                        Imap::FetchEmailService.new(channel: channel, interval: interval).perform
                      end
-    inbound_emails.map do |inbound_mail|
-      process_mail(inbound_mail, channel)
-    end
+    inbound_emails.map { |inbound_mail| process_mail(inbound_mail, channel) }
+
+    process_sent_folder_for_channel(channel, interval) if poll_sent_folder?(channel)
   rescue OAuth2::Error => e
     Rails.logger.error "Error for email channel - #{channel.inbox.id} : #{e.message}"
     channel.authorization_error!
   end
 
-  def process_mail(inbound_mail, channel)
-    Imap::ImapMailbox.new.process(inbound_mail, channel)
+  # Plain-IMAP only (no provider). Pulls messages other clients (Zoho web UI,
+  # native mail apps) wrote to INBOX.Sent so they appear in Chatwoot threaded
+  # into the original conversation.
+  def poll_sent_folder?(channel)
+    channel.provider.blank?
+  end
+
+  def process_sent_folder_for_channel(channel, interval)
+    sent_emails = Imap::FetchEmailService.new(channel: channel, interval: interval, folder: 'INBOX.Sent').perform
+    sent_emails.map { |inbound_mail| process_mail(inbound_mail, channel, message_type: 'outgoing') }
+  rescue *ExceptionList::IMAP_EXCEPTIONS, IOError, OpenSSL::SSL::SSLError, Net::IMAP::Error => e
+    Rails.logger.warn "[IMAP::SENT_FETCH] inbox #{channel.inbox.id}: #{e.message}"
+  end
+
+  def process_mail(inbound_mail, channel, message_type: 'incoming')
+    Imap::ImapMailbox.new.process(inbound_mail, channel, message_type: message_type)
   rescue StandardError => e
     ChatwootExceptionTracker.new(e, account: channel.account).capture_exception
     Rails.logger.error("

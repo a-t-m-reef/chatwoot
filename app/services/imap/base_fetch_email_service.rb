@@ -1,7 +1,7 @@
 require 'net/imap'
 
 class Imap::BaseFetchEmailService
-  pattr_initialize [:channel!, :interval]
+  pattr_initialize [:channel!, :interval, :folder]
 
   def fetch_emails
     # Override this method
@@ -108,7 +108,7 @@ class Imap::BaseFetchEmailService
   def build_imap_client
     imap = Net::IMAP.new(channel.imap_address, port: channel.imap_port, ssl: true)
     imap.authenticate(authentication_type, channel.imap_login, imap_password)
-    imap.select('INBOX')
+    imap.select(folder || 'INBOX')
     imap
   end
 

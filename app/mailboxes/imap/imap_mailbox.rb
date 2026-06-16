@@ -5,15 +5,29 @@ class Imap::ImapMailbox
 
   FALLBACK_CONVERSATION_PATTERN = %r{account/(\d+)/conversation/([a-zA-Z0-9-]+)@}
 
-  def process(mail, channel)
+  def process(mail, channel, message_type: 'incoming')
     @inbound_mail = mail
     @channel = channel
+    @message_type = message_type
     load_account
     load_inbox
     decorate_mail
 
-    Rails.logger.info("Processing Email from: #{@processed_mail.original_sender} : inbox #{@inbox.id} : message_id #{@processed_mail.message_id}")
+    Rails.logger.info(
+      "Processing Email from: #{@processed_mail.original_sender} : inbox #{@inbox.id} : " \
+      "message_id #{@processed_mail.message_id} : type #{@message_type}"
+    )
 
+    if @message_type == 'outgoing'
+      process_outgoing_mail
+    else
+      process_incoming_mail
+    end
+  end
+
+  private
+
+  def process_incoming_mail
     # Skip processing email if it belongs to any of the edge cases
     return unless incoming_email_from_valid_email?
 
@@ -25,7 +39,21 @@ class Imap::ImapMailbox
     end
   end
 
-  private
+  # Outgoing mail polled from INBOX.Sent (typed in Zoho web UI or APPENDed by us).
+  # Thread into existing conversations only; never create a new conversation or
+  # contact (that would mis-attribute our own address as a contact). Existing
+  # source_id dedup in MailboxHelper#create_message catches Chatwoot's own
+  # APPEND round-trip.
+  def process_outgoing_mail
+    conversation = find_conversation_by_in_reply_to || find_conversation_by_reference_ids
+    return if conversation.nil?
+
+    @conversation = conversation
+    ActiveRecord::Base.transaction do
+      create_message
+      add_attachments_to_message
+    end
+  end
 
   def load_account
     @account = @channel.account

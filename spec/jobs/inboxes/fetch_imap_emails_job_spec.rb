@@ -42,19 +42,23 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
       it 'calls the imap fetch service' do
         fetch_service = double
         allow(Imap::FetchEmailService).to receive(:new).with(channel: imap_email_channel, interval: 1).and_return(fetch_service)
+        allow(Imap::FetchEmailService).to receive(:new)
+          .with(channel: imap_email_channel, interval: 1, folder: 'INBOX.Sent').and_return(fetch_service)
         allow(fetch_service).to receive(:perform).and_return([])
 
         described_class.perform_now(imap_email_channel)
-        expect(fetch_service).to have_received(:perform)
+        expect(fetch_service).to have_received(:perform).at_least(:once)
       end
 
       it 'calls the imap fetch service with the correct interval' do
         fetch_service = double
         allow(Imap::FetchEmailService).to receive(:new).with(channel: imap_email_channel, interval: 4).and_return(fetch_service)
+        allow(Imap::FetchEmailService).to receive(:new)
+          .with(channel: imap_email_channel, interval: 4, folder: 'INBOX.Sent').and_return(fetch_service)
         allow(fetch_service).to receive(:perform).and_return([])
 
         described_class.perform_now(imap_email_channel, 4)
-        expect(fetch_service).to have_received(:perform)
+        expect(fetch_service).to have_received(:perform).at_least(:once)
       end
     end
 
@@ -93,20 +97,23 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
       let(:exception_tracker) { double }
       let(:fetch_service) { double }
 
+      let(:sent_fetch_service) { double }
+
       before do
         allow(Imap::ImapMailbox).to receive(:new).and_return(mailbox)
         allow(ChatwootExceptionTracker).to receive(:new).and_return(exception_tracker)
 
         allow(Imap::FetchEmailService).to receive(:new).with(channel: imap_email_channel, interval: 1).and_return(fetch_service)
+        allow(Imap::FetchEmailService).to receive(:new)
+          .with(channel: imap_email_channel, interval: 1, folder: 'INBOX.Sent').and_return(sent_fetch_service)
         allow(fetch_service).to receive(:perform).and_return([inbound_mail])
+        allow(sent_fetch_service).to receive(:perform).and_return([])
       end
 
       it 'calls the mailbox to create emails' do
         allow(mailbox).to receive(:process)
 
-        expect(Imap::FetchEmailService).to receive(:new).with(channel: imap_email_channel, interval: 1).and_return(fetch_service)
-        expect(fetch_service).to receive(:perform).and_return([inbound_mail])
-        expect(mailbox).to receive(:process).with(inbound_mail, imap_email_channel)
+        expect(mailbox).to receive(:process).with(inbound_mail, imap_email_channel, message_type: 'incoming')
 
         described_class.perform_now(imap_email_channel)
       end

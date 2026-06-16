@@ -5,13 +5,14 @@ module MailboxHelper
     Rails.logger.info "[MailboxHelper] Creating message #{processed_mail.message_id}"
     return if @conversation.messages.find_by(source_id: processed_mail.message_id).present?
 
+    type = @message_type || 'incoming'
     @message = @conversation.messages.create!(
       account_id: @conversation.account_id,
-      sender: @conversation.contact,
+      sender: type == 'outgoing' ? nil : @conversation.contact,
       content: mail_content&.truncate(150_000),
       inbox_id: @conversation.inbox_id,
-      message_type: 'incoming',
-      content_type: 'incoming_email',
+      message_type: type,
+      content_type: type == 'outgoing' ? 'text' : 'incoming_email',
       source_id: processed_mail.message_id,
       content_attributes: {
         email: processed_mail.serialized_data,
