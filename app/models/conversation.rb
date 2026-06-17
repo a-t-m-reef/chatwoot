@@ -12,6 +12,7 @@
 #  first_reply_created_at :datetime
 #  identifier             :string
 #  last_activity_at       :datetime         not null
+#  last_inbound_at        :datetime
 #  priority               :integer
 #  snoozed_until          :datetime
 #  status                 :integer          default("open"), not null
@@ -43,6 +44,7 @@
 #  index_conversations_on_id_and_account_id           (account_id,id)
 #  index_conversations_on_identifier_and_account_id   (identifier,account_id)
 #  index_conversations_on_inbox_id                    (inbox_id)
+#  index_conversations_on_last_inbound_at             (last_inbound_at)
 #  index_conversations_on_priority                    (priority)
 #  index_conversations_on_status_and_account_id       (status,account_id)
 #  index_conversations_on_status_and_priority         (status,priority)
@@ -120,6 +122,7 @@ class Conversation < ApplicationRecord
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
+  before_create :ensure_last_inbound_at
 
   after_update_commit :execute_after_update_commit_callbacks
   after_create_commit :notify_conversation_creation
@@ -150,10 +153,11 @@ class Conversation < ApplicationRecord
   end
 
   # Timestamp of the most recent inbound message, or created_at when no inbound exists.
-  # Used by the dashboard conversation list for sort/display so that an agent's own
-  # outgoing reply doesn't bump the conversation back to the top.
+  # Denormalized into a column (maintained on incoming messages, see Message#set_conversation_activity)
+  # so the dashboard conversation list can sort/paginate by it server-side, instead of an agent's
+  # own outgoing reply bumping the conversation back to the top.
   def last_inbound_at
-    messages.incoming.maximum(:created_at) || created_at
+    self[:last_inbound_at] || created_at
   end
 
   def toggle_status
@@ -257,6 +261,10 @@ class Conversation < ApplicationRecord
 
   def ensure_waiting_since
     self.waiting_since = created_at
+  end
+
+  def ensure_last_inbound_at
+    self.last_inbound_at = created_at
   end
 
   def validate_additional_attributes

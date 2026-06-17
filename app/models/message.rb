@@ -447,7 +447,11 @@ class Message < ApplicationRecord
 
   def set_conversation_activity
     # rubocop:disable Rails/SkipsModelValidations
-    conversation.update_columns(last_activity_at: created_at, updated_at: Time.current)
+    attributes = { last_activity_at: created_at, updated_at: Time.current }
+    # Only inbound messages advance last_inbound_at, so our own outgoing replies
+    # (and backfilled sent mail) never bump a conversation in the list.
+    attributes[:last_inbound_at] = created_at if incoming?
+    conversation.update_columns(attributes)
     # rubocop:enable Rails/SkipsModelValidations
   end
 

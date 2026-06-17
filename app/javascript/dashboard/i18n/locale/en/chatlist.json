@@ -66,6 +66,9 @@
       "last_activity_at_desc": {
         "TEXT": "Last activity: Newest first"
       },
+      "last_inbound_at_desc": {
+        "TEXT": "Last customer reply: Newest first"
+      },
       "created_at_desc": {
         "TEXT": "Created at: Newest first"
       },

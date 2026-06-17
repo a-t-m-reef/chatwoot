@@ -34,7 +34,7 @@ const currentStatusFilter = computed(() => {
 
 const currentSortBy = computed(() => {
   return (
-    chatSortFilter.value || wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC
+    chatSortFilter.value || wootConstants.SORT_BY_TYPE.LAST_INBOUND_AT_DESC
   );
 });
 
@@ -69,6 +69,10 @@ const chatSortOptions = computed(() => [
   {
     label: t('CHAT_LIST.SORT_ORDER_ITEMS.last_activity_at_desc.TEXT'),
     value: 'last_activity_at_desc',
+  },
+  {
+    label: t('CHAT_LIST.SORT_ORDER_ITEMS.last_inbound_at_desc.TEXT'),
+    value: 'last_inbound_at_desc',
   },
   {
     label: t('CHAT_LIST.SORT_ORDER_ITEMS.created_at_desc.TEXT'),

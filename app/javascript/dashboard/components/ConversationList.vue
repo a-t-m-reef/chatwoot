@@ -61,6 +61,7 @@ const bucketForTimestamp = ts => {
 // in time so we hide headers and pass the upstream list through unchanged.
 const HEADER_FRIENDLY_SORTS = new Set([
   undefined,
+  wootConstants.SORT_BY_TYPE.LAST_INBOUND_AT_DESC,
   wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC,
   wootConstants.SORT_BY_TYPE.CREATED_AT_DESC,
 ]);
