@@ -14,6 +14,13 @@ const QUOTE_INDICATORS = [
 
 const BLOCKQUOTE_FALLBACK_SELECTOR = 'blockquote';
 
+// Markers identifying a *forwarded* message. Forwarded content sits in the same
+// quote containers as reply-quotes, but it IS the message, so it must stay visible.
+const FORWARD_PATTERNS = [
+  /-{2,}\s*Forwarded message/i,
+  /Begin forwarded message/i,
+];
+
 // Regex patterns for quote identification
 const QUOTE_PATTERNS = [
   /On .* wrote:/i,
@@ -33,19 +40,23 @@ export class EmailQuoteExtractor {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = DOMPurify.sanitize(htmlContent);
 
-    // Remove elements matching class selectors
+    // Remove elements matching class selectors (forwarded messages are kept)
     QUOTE_INDICATORS.forEach(selector => {
       tempDiv.querySelectorAll(selector).forEach(el => {
-        el.remove();
+        if (!this.isForwardedBlock(el)) {
+          el.remove();
+        }
       });
     });
 
     this.removeTrailingBlockquote(tempDiv);
 
-    // Remove text-based quotes
+    // Remove text-based quotes (forwarded messages are kept)
     const textNodeQuotes = this.findTextNodeQuotes(tempDiv);
     textNodeQuotes.forEach(el => {
-      el.remove();
+      if (!this.isForwardedBlock(el)) {
+        el.remove();
+      }
     });
 
     return tempDiv.innerHTML;
@@ -60,21 +71,36 @@ export class EmailQuoteExtractor {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = DOMPurify.sanitize(htmlContent);
 
-    // Check for class-based quotes
-    // eslint-disable-next-line no-restricted-syntax
-    for (const selector of QUOTE_INDICATORS) {
-      if (tempDiv.querySelector(selector)) {
-        return true;
-      }
-    }
-
-    if (this.findTrailingBlockquote(tempDiv)) {
+    // Class-based quotes (forwarded blocks don't count — they stay visible)
+    const hasClassQuote = QUOTE_INDICATORS.some(selector =>
+      Array.from(tempDiv.querySelectorAll(selector)).some(
+        el => !this.isForwardedBlock(el)
+      )
+    );
+    if (hasClassQuote) {
       return true;
     }
 
-    // Check for text-based quotes
-    const textNodeQuotes = this.findTextNodeQuotes(tempDiv);
-    return textNodeQuotes.length > 0;
+    const trailingBlockquote = this.findTrailingBlockquote(tempDiv);
+    if (trailingBlockquote && !this.isForwardedBlock(trailingBlockquote)) {
+      return true;
+    }
+
+    // Text-based quotes (excluding forwarded blocks)
+    return this.findTextNodeQuotes(tempDiv).some(
+      el => !this.isForwardedBlock(el)
+    );
+  }
+
+  /**
+   * Determine whether an element is a forwarded message rather than a reply quote.
+   * Forwarded content lives in the same quote containers but should stay visible.
+   * @param {Element} element - Candidate quote element
+   * @returns {boolean} True if the element looks like a forwarded message
+   */
+  static isForwardedBlock(element) {
+    const text = element?.textContent ?? '';
+    return FORWARD_PATTERNS.some(pattern => pattern.test(text));
   }
 
   /**
@@ -140,7 +166,9 @@ export class EmailQuoteExtractor {
    */
   static removeTrailingBlockquote(rootElement) {
     const trailingBlockquote = this.findTrailingBlockquote(rootElement);
-    trailingBlockquote?.remove();
+    if (trailingBlockquote && !this.isForwardedBlock(trailingBlockquote)) {
+      trailingBlockquote.remove();
+    }
   }
 
   /**

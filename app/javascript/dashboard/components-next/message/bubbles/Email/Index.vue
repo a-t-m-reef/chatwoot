@@ -41,10 +41,16 @@ const originalEmailText = computed(() => {
   return sanitizeTextForRender(text);
 });
 
-const originalEmailHtml = computed(
-  () =>
+// Strips the server-injected quote-hiding <style> block (chatwoot-bq-fix) so its
+// display:none can't blank out content the reader explicitly expands.
+const stripInjectedQuoteCss = html =>
+  (html || '').replace(/<!--\s*chatwoot-bq-fix[\s\S]*?<\/style>/gi, '');
+
+const originalEmailHtml = computed(() =>
+  stripInjectedQuoteCss(
     contentAttributes?.value?.email?.htmlContent?.full ||
-    originalEmailText.value
+      originalEmailText.value
+  )
 );
 
 const hasEmailContent = computed(() => {

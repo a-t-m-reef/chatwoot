@@ -72,10 +72,14 @@ class MailPresenter < SimpleDelegator
 
     body = EmailReplyTrimmer.trim(@decoded_html_content)
 
+    # Forwarded mail carries its body inside the quote container, so hiding quotes
+    # would blank it out. Only collapse quotes for non-forwarded mail.
+    css = forwarded? ? '' : MOBILE_BLOCKQUOTE_CSS
+
     @html_content ||= {
-      full: MOBILE_BLOCKQUOTE_CSS + (mail_content(html_part) || ''),
-      reply: MOBILE_BLOCKQUOTE_CSS + @decoded_html_content,
-      quoted: MOBILE_BLOCKQUOTE_CSS + body
+      full: css + (mail_content(html_part) || ''),
+      reply: css + @decoded_html_content,
+      quoted: css + body
     }
   end
 
@@ -189,6 +193,15 @@ class MailPresenter < SimpleDelegator
   end
 
   private
+
+  # Detect forwarded mail so we can keep its body visible. Forwarded content lives
+  # inside the same quote container that MOBILE_BLOCKQUOTE_CSS would otherwise hide.
+  def forwarded?
+    return true if email_forwarded_for.present?
+    return true if @mail.subject.to_s.match?(/\A\s*fwd?\s*:/i)
+
+    @decoded_html_content.to_s.match?(/-{2,}\s*Forwarded message|Begin forwarded message|gmail_quote_container/i)
+  end
 
   def parse_mail_address(email)
     return if email.blank?
