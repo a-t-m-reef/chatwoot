@@ -61,7 +61,6 @@ const bucketForTimestamp = ts => {
 // in time so we hide headers and pass the upstream list through unchanged.
 const HEADER_FRIENDLY_SORTS = new Set([
   undefined,
-  wootConstants.SORT_BY_TYPE.LAST_INBOUND_AT_DESC,
   wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC,
   wootConstants.SORT_BY_TYPE.CREATED_AT_DESC,
 ]);
@@ -69,10 +68,11 @@ const HEADER_FRIENDLY_SORTS = new Set([
 const store = useStore();
 const chatSortFilter = computed(() => store.getters.getChatSortFilter);
 
-// Use last_inbound_at (most recent customer message) so an outgoing reply
-// from us doesn't bump the conversation. Falls back to created_at when no
-// inbound exists (e.g. agent-initiated threads, system notifications).
-const lastActivityTs = chat => chat?.last_inbound_at || chat?.created_at || 0;
+// Anchor display order and date buckets to the most recent message in either
+// direction. last_activity_at is kept live by the websocket path
+// (UPDATE_CONVERSATION_LAST_ACTIVITY), so new mail re-ranks without a reload.
+const lastActivityTs = chat =>
+  chat?.last_activity_at || chat?.timestamp || chat?.created_at || 0;
 
 const groupedList = computed(() => {
   if (!HEADER_FRIENDLY_SORTS.has(chatSortFilter.value)) {

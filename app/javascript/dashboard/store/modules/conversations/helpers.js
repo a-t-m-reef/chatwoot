@@ -112,7 +112,6 @@ const SORT_OPTIONS = {
   last_activity_at_desc: ['sortOnLastActivityAt', 'desc'],
   created_at_asc: ['sortOnCreatedAt', 'asc'],
   created_at_desc: ['sortOnCreatedAt', 'desc'],
-  last_inbound_at_desc: ['sortOnLastInboundAt', 'desc'],
   priority_asc: ['sortOnPriority', 'asc'],
   priority_desc: ['sortOnPriority', 'desc'],
   waiting_since_asc: ['sortOnWaitingSince', 'asc'],
@@ -131,12 +130,6 @@ const sortConfig = {
 
   sortOnCreatedAt: (a, b, sortDirection) =>
     getSortOrderFunction(sortDirection)(a.created_at, b.created_at),
-
-  sortOnLastInboundAt: (a, b, sortDirection) =>
-    getSortOrderFunction(sortDirection)(
-      a.last_inbound_at || a.created_at,
-      b.last_inbound_at || b.created_at
-    ),
 
   sortOnPriority: (a, b, sortDirection) => {
     const DEFAULT_FOR_NULL = sortDirection === 'asc' ? 5 : 0;

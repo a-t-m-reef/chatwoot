@@ -22,7 +22,6 @@ export default {
     LAST_ACTIVITY_AT_DESC: 'last_activity_at_desc',
     CREATED_AT_ASC: 'created_at_asc',
     CREATED_AT_DESC: 'created_at_desc',
-    LAST_INBOUND_AT_DESC: 'last_inbound_at_desc',
     PRIORITY_ASC: 'priority_asc',
     PRIORITY_DESC: 'priority_desc',
     WAITING_SINCE_ASC: 'waiting_since_asc',

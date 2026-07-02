@@ -448,8 +448,9 @@ class Message < ApplicationRecord
   def set_conversation_activity
     # rubocop:disable Rails/SkipsModelValidations
     attributes = { last_activity_at: created_at, updated_at: Time.current }
-    # Only inbound messages advance last_inbound_at, so our own outgoing replies
-    # (and backfilled sent mail) never bump a conversation in the list.
+    # last_inbound_at records the last customer message time. The list sorts by
+    # last_activity_at; this column remains only for the API-level
+    # last_inbound_at_desc sort option.
     attributes[:last_inbound_at] = created_at if incoming?
     conversation.update_columns(attributes)
     # rubocop:enable Rails/SkipsModelValidations
