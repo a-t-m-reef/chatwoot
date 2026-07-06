@@ -35,6 +35,12 @@
           }
         }
       },
+      "GRAMMAR_CHECK": {
+        "TITLE": "Spelling and grammar",
+        "NOTE": "Check spelling and grammar as you type in the reply editor. Flagged words get a wavy underline; click one to see suggestions. Runs privately in your browser.",
+        "LABEL": "Check spelling and grammar as you type",
+        "UPDATE_SUCCESS": "Your settings have been updated successfully"
+      },
       "INTERFACE_SECTION": {
         "TITLE": "Interface",
         "NOTE": "Customize the look and feel of your Chatwoot dashboard.",

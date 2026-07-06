@@ -14,6 +14,7 @@ import MessageSignature from './MessageSignature.vue';
 import FontSize from './FontSize.vue';
 import UserLanguageSelect from './UserLanguageSelect.vue';
 import HotKeyCard from './HotKeyCard.vue';
+import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 import ChangePassword from './ChangePassword.vue';
 import NotificationPreferences from './NotificationPreferences.vue';
 import AudioNotifications from './AudioNotifications.vue';
@@ -37,6 +38,7 @@ export default {
     Policy,
     UserBasicDetails,
     HotKeyCard,
+    ToggleSwitch,
     ChangePassword,
     NotificationPreferences,
     AudioNotifications,
@@ -45,7 +47,8 @@ export default {
     BaseSettingsHeader,
   },
   setup() {
-    const { isEditorHotKeyEnabled, updateUISettings } = useUISettings();
+    const { isEditorHotKeyEnabled, isGrammarCheckEnabled, updateUISettings } =
+      useUISettings();
     const { currentFontSize, updateFontSize } = useFontSize();
     const { replaceInstallationName } = useBranding();
 
@@ -53,6 +56,7 @@ export default {
       currentFontSize,
       updateFontSize,
       isEditorHotKeyEnabled,
+      isGrammarCheckEnabled,
       updateUISettings,
       replaceInstallationName,
     };
@@ -102,6 +106,14 @@ export default {
     }),
     isMfaEnabled() {
       return parseBoolean(window.chatwootConfig?.isMfaEnabled);
+    },
+    grammarCheckEnabled: {
+      get() {
+        return this.isGrammarCheckEnabled();
+      },
+      set(value) {
+        this.toggleGrammarCheck(value);
+      },
     },
   },
   mounted() {
@@ -187,6 +199,10 @@ export default {
       );
       this.updateUISettings({ editor_message_key: key });
       useAlert(this.$t('PROFILE_SETTINGS.FORM.SEND_MESSAGE.UPDATE_SUCCESS'));
+    },
+    toggleGrammarCheck(value) {
+      this.updateUISettings({ grammar_check_enabled: value });
+      useAlert(this.$t('PROFILE_SETTINGS.FORM.GRAMMAR_CHECK.UPDATE_SUCCESS'));
     },
     async onCopyToken(value) {
       await copyTextToClipboard(value);
@@ -289,6 +305,20 @@ export default {
           />
         </button>
       </div>
+    </SectionLayout>
+    <SectionLayout
+      with-border
+      :title="$t('PROFILE_SETTINGS.FORM.GRAMMAR_CHECK.TITLE')"
+      :description="$t('PROFILE_SETTINGS.FORM.GRAMMAR_CHECK.NOTE')"
+    >
+      <label
+        class="flex items-center justify-between w-full gap-4 cursor-pointer"
+      >
+        <span class="text-sm text-n-slate-12">
+          {{ $t('PROFILE_SETTINGS.FORM.GRAMMAR_CHECK.LABEL') }}
+        </span>
+        <ToggleSwitch v-model="grammarCheckEnabled" />
+      </label>
     </SectionLayout>
     <SectionLayout
       v-if="!globalConfig.disableUserProfileUpdate"

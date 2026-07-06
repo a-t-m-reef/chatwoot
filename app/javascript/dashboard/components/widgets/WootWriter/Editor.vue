@@ -7,6 +7,7 @@ import {
   computed,
   watch,
   onMounted,
+  onBeforeUnmount,
   useTemplateRef,
   nextTick,
 } from 'vue';
@@ -17,6 +18,7 @@ import TagAgents from '../conversation/TagAgents.vue';
 import VariableList from '../conversation/VariableList.vue';
 import TagTools from '../conversation/TagTools.vue';
 import CopilotMenuBar from './CopilotMenuBar.vue';
+import GrammarSuggestionPopover from './GrammarSuggestionPopover.vue';
 
 import { useEmitter } from 'dashboard/composables/emitter';
 import { useI18n } from 'vue-i18n';
@@ -70,6 +72,12 @@ import {
 import { createTypingIndicator } from '@chatwoot/utils';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
 import { uploadFile } from 'dashboard/helper/uploadHelper';
+import {
+  createGrammarPlugin,
+  grammarPluginKey,
+} from 'dashboard/helper/textCorrect/grammarPlugin';
+import { textBetweenAsPlain } from 'dashboard/helper/textCorrect/offsetMap';
+import { useGrammarChecker } from 'dashboard/composables/useGrammarChecker';
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -163,8 +171,11 @@ const createState = (content, placeholder, plugins = [], methods = {}) => {
   });
 };
 
-const { isEditorHotKeyEnabled, fetchSignatureFlagFromUISettings } =
-  useUISettings();
+const {
+  isEditorHotKeyEnabled,
+  fetchSignatureFlagFromUISettings,
+  isGrammarCheckEnabled,
+} = useUISettings();
 
 const typingIndicator = createTypingIndicator(
   () => emit('typingOn'),
@@ -196,6 +207,65 @@ const selectedImageNode = ref(null);
 const isTextSelected = ref(false); // Tracks text selection and prevents unnecessary re-renders on mouse selection
 const showSelectionMenu = ref(false);
 const sizes = MESSAGE_EDITOR_IMAGE_RESIZES;
+
+// Grammar/spell/brand autocorrect (business to-do #37). On by default; active on
+// customer-facing replies (never private notes) unless the agent turns the setting off.
+const POPOVER_OUTSIDE_CLICK_GRACE_MS = 150;
+const { checkText } = useGrammarChecker();
+// Mutable holder the plugin fills with `recheck`/`clear` so we can force a re-check
+// (after "Ignore") without threading refs through the non-reactive plugin factory.
+const grammarController = {};
+const grammarIgnoredWords = new Set(); // session-only ignore list
+const grammarPopover = ref(null); // { lint, from, to, coords } | null
+let grammarPopoverOpenedAt = 0;
+
+// The raw per-user setting, watched on its own so the editor is rebuilt exactly once
+// when the setting flips. `grammarEnabled` also folds in !isPrivate for plugin gating,
+// but the isPrivate watcher already rebuilds the editor, so watching grammarEnabled
+// directly would double-rebuild on every private-note toggle.
+const grammarSettingEnabled = computed(() => isGrammarCheckEnabled());
+const grammarEnabled = computed(
+  () => grammarSettingEnabled.value && !props.isPrivate
+);
+
+function handleLintClick(payload) {
+  grammarPopoverOpenedAt = Date.now();
+  grammarPopover.value = payload;
+}
+
+// Backspace-to-word: when the caret lands on an underlined word (e.g. the agent
+// backspaces back to a flagged typo), open its suggestion popover just like a click.
+// Called on keyup, i.e. AFTER the delete transaction and emitOnChange have run, so the
+// popover we open here is not immediately dismissed by emitOnChange.
+function maybeOpenGrammarPopoverAtCaret() {
+  if (!grammarEnabled.value || !editorView) return;
+  const { selection, doc } = editorView.state;
+  if (!selection.empty) return;
+  const set = grammarPluginKey.getState(editorView.state);
+  if (!set) return;
+  const pos = selection.from;
+  const deco = set
+    .find(Math.max(0, pos - 1), pos + 1)
+    .find(d => d.spec && d.spec.lint && pos >= d.from && pos <= d.to);
+  // Only open for a still-valid underline (backspacing INTO a word makes it stale).
+  if (
+    !deco ||
+    textBetweenAsPlain(doc, deco.from, deco.to) !== deco.spec.lint.problem
+  )
+    return;
+  let coords = null;
+  try {
+    coords = editorView.coordsAtPos(deco.from);
+  } catch (e) {
+    coords = null;
+  }
+  handleLintClick({
+    lint: deco.spec.lint,
+    from: deco.from,
+    to: deco.to,
+    coords,
+  });
+}
 
 // element ref
 const editorRoot = useTemplateRef('editorRoot');
@@ -272,11 +342,27 @@ function createSuggestionPlugin({
 }
 
 const plugins = computed(() => {
+  // The grammar plugin is added ABOVE the enableSuggestions early-return so it is never
+  // dropped on surfaces that disable the @/`/`{{` suggestion menus. It is gated purely on
+  // the per-user setting (and not-a-private-note), never on enableSuggestions.
+  const base = [];
+  if (grammarEnabled.value) {
+    base.push(
+      createGrammarPlugin({
+        check: checkText,
+        getCustomWords: () => [...grammarIgnoredWords],
+        onLintClick: handleLintClick,
+        controller: grammarController,
+      })
+    );
+  }
+
   if (!props.enableSuggestions) {
-    return [];
+    return base;
   }
 
   return [
+    ...base,
     createSuggestionPlugin({
       trigger: '@',
       showMenu: showToolsMenu,
@@ -553,6 +639,42 @@ function isEditorMouseFocusedOnAnImage() {
 function emitOnChange() {
   emit('input', contentFromEditor());
   emit('update:modelValue', contentFromEditor());
+  // Any edit invalidates the open suggestion popover's stored positions; dismiss it.
+  if (grammarPopover.value) grammarPopover.value = null;
+}
+
+function applyGrammarFix(replacement) {
+  const popover = grammarPopover.value;
+  grammarPopover.value = null;
+  if (!popover || !editorView) return;
+  const { from, to, lint } = popover;
+  const { doc } = editorView.state;
+  // Re-verify the range still holds the flagged text before replacing (the doc may have
+  // moved since the popover opened). Uses the same separators as the paint-time check.
+  if (
+    to > doc.content.size ||
+    textBetweenAsPlain(doc, from, to) !== lint.problem
+  )
+    return;
+  editorView.dispatch(editorView.state.tr.insertText(replacement, from, to));
+  editorView.focus();
+}
+
+function ignoreGrammarLint() {
+  const popover = grammarPopover.value;
+  grammarPopover.value = null;
+  if (!popover) return;
+  const word = popover.lint.problem;
+  if (word) grammarIgnoredWords.add(word);
+  grammarController.recheck?.();
+}
+
+function onPopoverClickOutside() {
+  // Ignore the same click that opened the popover (mouseup opens, the trailing click
+  // event is what the outside-click directive sees).
+  if (Date.now() - grammarPopoverOpenedAt < POPOVER_OUTSIDE_CLICK_GRACE_MS)
+    return;
+  grammarPopover.value = null;
 }
 
 function updateImgToolbarOnDelete() {
@@ -711,6 +833,9 @@ function handleLineBreakWhenCmdAndEnterToSendEnabled(event) {
 }
 
 function onKeydown(event) {
+  if (event.key === 'Escape' && grammarPopover.value) {
+    grammarPopover.value = null;
+  }
   if (isEnterToSendEnabled()) {
     handleLineBreakWhenEnterToSendEnabled(event);
   }
@@ -732,10 +857,12 @@ function createEditorView() {
       checkSelection(state);
     },
     handleDOMEvents: {
-      keyup: () => {
+      keyup: (view, event) => {
         if (!props.disabled) {
           typingIndicator.start();
           updateImgToolbarOnDelete();
+          // Backspacing back onto an underlined word opens its suggestion popover.
+          if (event.key === 'Backspace') maybeOpenGrammarPopoverAtCaret();
         }
       },
       keydown: (view, event) => !props.disabled && onKeydown(event),
@@ -791,6 +918,15 @@ watch(
   }
 );
 
+// Plugins are non-reactive (built once per createState), so toggling the grammar setting
+// requires rebuilding the editor to add/remove the decoration plugin. Watch the raw
+// setting (not grammarEnabled): the isPrivate watcher already handles private-note
+// toggles, and reloadState re-reads grammarEnabled to gate the plugin correctly.
+watch(grammarSettingEnabled, () => {
+  grammarPopover.value = null;
+  reloadState(props.modelValue);
+});
+
 watch(
   computed(() => props.updateSelectionWith),
   (newValue, oldValue) => {
@@ -833,6 +969,13 @@ onMounted(() => {
   if (props.focusOnMount) {
     focusEditorInputField();
   }
+});
+
+onBeforeUnmount(() => {
+  // Destroy the ProseMirror view so plugin views' destroy() runs (the grammar plugin
+  // clears its debounce timer and stops a pending check from dispatching onto a
+  // detached editor after this component unmounts).
+  editorView?.destroy();
 });
 
 defineExpose({ focusEditorInputField });
@@ -888,6 +1031,14 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
       :show-general-menu="false"
       class="copilot-editor-menu"
       @execute-copilot-action="handleCopilotAction"
+    />
+    <GrammarSuggestionPopover
+      v-if="grammarPopover"
+      v-on-click-outside="onPopoverClickOutside"
+      :lint="grammarPopover.lint"
+      :coords="grammarPopover.coords"
+      @apply="applyGrammarFix"
+      @ignore="ignoreGrammarLint"
     />
     <input
       ref="imageUpload"

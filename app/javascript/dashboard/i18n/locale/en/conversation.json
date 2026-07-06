@@ -225,6 +225,10 @@
       "START_AUDIO_RECORDING": "Start audio recording",
       "STOP_AUDIO_RECORDING": "Stop audio recording",
       "COPILOT_THINKING": "Copilot is thinking",
+      "GRAMMAR": {
+        "IGNORE": "Ignore",
+        "NO_SUGGESTIONS": "No suggestions"
+      },
       "EMAIL_HEAD": {
         "TO": "TO",
         "FROM": "FROM",

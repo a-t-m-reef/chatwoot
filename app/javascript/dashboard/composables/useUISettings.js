@@ -166,5 +166,10 @@ export function useUISettings() {
     fetchQuotedReplyFlagFromUISettings: channelType =>
       fetchQuotedReplyFlagFromUISettings(channelType, uiSettings),
     isEditorHotKeyEnabled: key => isEditorHotKeyEnabled(key, uiSettings),
+    // Per-user grammar/spell autocorrect toggle (business to-do #37). Defaults ON: an
+    // unset flag reads as enabled; only an explicit `false` (the agent turning it off)
+    // disables it.
+    isGrammarCheckEnabled: () =>
+      uiSettings.value.grammar_check_enabled !== false,
   };
 }

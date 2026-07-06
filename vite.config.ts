@@ -85,6 +85,13 @@ export default defineConfig({
       assets: path.resolve('./app/javascript/dashboard/assets'),
     },
   },
+  // Emit Web Workers as ES modules so the Harper grammar/spell worker
+  // (app/javascript/dashboard/helper/textCorrect/harper.worker.js) can `import` its
+  // engine + inlined WASM. Dev works with the default; this keeps the production build
+  // correct too. Vite's default worker.format is 'iife'.
+  worker: {
+    format: 'es',
+  },
   test: {
     environment: 'jsdom',
     include: ['app/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
